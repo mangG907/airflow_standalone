@@ -8,7 +8,7 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 with DAG(
-    'import_db',
+    '1import_db',
     # These args will get passed on to each operator
     # You can override them on a per-task basis during operator initialization
     default_args={
@@ -27,13 +27,21 @@ with DAG(
 
 
     task_check = BashOperator(
-            task_id="check.done",
-            bash_command="""
-                bash {{ var.value.CHECK_SH }} ~/data/done/{{ds_nodash}}/_DONE
-            """
+            task_id="check",
+            bash_command="bash {{ var.value.CHECK_SH }} {{ds_nodash}}"
+#            echo "check"
+#            DONE_PATH=~/data/done/{{ds_nodash}}
+#            DONE_PATH_FILE="${DONE_PATH}/_DONE"
+#
+#            #파일 존재 여부 확인
+#            if [ -e "$DONE_PATH_FILE" ]; then
+#                figlet "Let's move on"
+#                exit 0
+#            else
+#                echo "I'll be back => $DONE_PATH_FILE"
+#                exit 1
+#            fi
     )
-
-
 
     task_csv = BashOperator(
             task_id="to.csv",
@@ -74,7 +82,7 @@ with DAG(
             task_id="to.base",
             bash_command="""
             echo "to.base"
-            bash {{ var.value.SH_HOME }}/tmp2base.sh {{ ds }} 
+            bash {{ var.valus.SH_HOME }}/tmp2base.sh {{ ds }} 
             #SQL={{ var.value.SQL_PATH }}/tmp2base.sql
             #echo "SQL_PATH=$SQL"
             #MYSQL_PWD='{{ var.value.DB_PASSWD }}' mysql -u root < $SQL
@@ -84,14 +92,6 @@ with DAG(
     task_done = BashOperator(
             task_id="make.done",
             bash_command="""
-                figlet "make.done.start"
-
-                DONE_PATH={{ var.value.IMPORT_DONE_PATH }}/{{ds_nodash}}
-                mkdir -p $DONE_PATH
-                echo "IMPORT_DONE_PATH=$DONE_PATH"
-                touch $DONE_PATH/_DONE
-
-                figlet "make.done.end"
             """
     )
 
