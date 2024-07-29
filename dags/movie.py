@@ -20,26 +20,24 @@ with DAG(
     catchup=True,
     tags=['movie'], 
 ) as dag:
-        t1=DummyOperator(
-            task_id='start'
-            )
+    t1=DummyOperator(
+        task_id='start'
+        )
+    t2=BashOperator(
+        task_id='get.data',
+        bash_command="""
+        echo "get.data"
+        """
+        )
 
-        t2=BashOperator(
-            task_id='get.data',
-            bash_command="""
-            echo "get.data"
-            """
-            )
+    t3=BashOperator(
+        task_id='save.data',
+        bash_command="""
+        echo "save.data"
+        """
+        )
+    t4=DummyOperator(
+        task_id='end'
+        )
 
-        t3=BashOperator(
-            task_id='save.data',
-            bash_command="""
-            echo "save.data"
-            """
-            )
-
-         t4=DummyOperator(
-            task_id='end'
-            )
-
-         t1 >> t2 >> t3 >> t4
+    t1 >> t2 >> t3 >> t4
