@@ -5,7 +5,13 @@ from airflow import DAG
 
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator 
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import (
+    PythonOperator,
+    BranchPythonOperator,
+    PythonVirtualenvOperator,
+    is_venv_installed,
+)
+from airflow.models import Variable
 from pprint import pprint 
 with DAG(
     'movie',
@@ -30,9 +36,10 @@ with DAG(
         print(f"kwargs type => {type(kwargs)}")
         print("=" * 20)
         from mov.api.call import get_key, save2df
-        key = get_key()
+        KEY = get_key()
         print(f"MOVIE_API_KEY => {KEY}")
-        df = save2df()
+        YYYYMMDD = kwargs['ds_nodash']
+        df = save2df(YYYYMMDD)
         print(df.head(5))
 
     def print_context(ds=None, **kwargs):
@@ -45,29 +52,56 @@ with DAG(
         print("::endgroup::")
         return "Whatever you return gets printed in the logs"
 
+
+    def branch_fun(**kwargs):
+        ds_nodash = kwargs['ds_nodash']
+        import os
+        if os.path.exists(f'~/tmp/test_parquet/load_dt={ld}'):
+            return rm_dir
+        else:
+            return get_data
+
+
+    branch_op = BranchPythonOperator(
+        task_id="branch.op",
+        python_callable=branch_fun
+    )
+
+
     run_this = PythonOperator(
             task_id="print_the_context",
-            python_callable=print_context)
+            python_callable=print_context,
+            )
 
-    t1=EmptyOperator(
+    start=EmptyOperator(
         task_id='start'
         )
 
-    t2=PythonOperator(
+    get_data=PythonVirtualenvOperator(
         task_id='get.data',
-        python_callable=get_data
+        python_callable=get_data,
+        requirements=["git+https://github.com/mangG907/movie.git@0.2.0/mov"],
+        system_site_packages=False,
         )
 
-    t3=BashOperator(
+    save_data=BashOperator(
         task_id='save.data',
         bash_command="""
         echo "save.data"
         """
         )
+    rm_dir=BashOperator(
+            task_id='rm.dir',
+            bash_command='rm-rf ~/tmp/test_parquet/load_dt={{ ds_nodash }}',
+        )
 
-    t4=EmptyOperator(
+    end=EmptyOperator(
         task_id='end'
         )
 
-    t1 >> t2 >> t3 >> t4
-    t1 >> run_this >> t4
+    start >> branch_op
+    branch_op >> rm_dir
+    branch_op >> get_data
+
+    get_data >> save_data >> end
+    rm_dir >> get_data
