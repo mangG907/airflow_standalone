@@ -126,6 +126,10 @@ with DAG(
         op_kwargs={ "arg" : {"repNationCd" : "F"}}
         )
 
+    branch_op = BranchPythonOperator(                               
+        task_id="branch.op",
+        python_callable=branch_fun
+        )
 
     rm_dir=BashOperator(
         task_id='rm.dir',
