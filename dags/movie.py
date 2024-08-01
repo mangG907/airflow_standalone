@@ -68,12 +68,6 @@ with DAG(
             return "get.data", "echo.task"
 
 
-    branch_op = BranchPythonOperator(
-        task_id="branch.op",
-        python_callable=branch_fun
-        )
-
-
     run_this = PythonOperator(
             task_id="print_the_context",
             python_callable=print_context,
