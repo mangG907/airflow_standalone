@@ -12,7 +12,7 @@ from airflow.operators.python import (
     is_venv_installed,
 )
 from airflow.models import Variable
-from pprint import pprint
+from pprint import pprint as pp
 
 with DAG(
     'movie_summary',
@@ -31,26 +31,84 @@ with DAG(
     catchup=True,
     tags=['movie', 'summary', 'etl', 'shop'],
 ) as dag:
+    REQUIREMENTS = [
+            "git+https://github.com/mangG907/mov_agg.git@0.5.0/agg",
+                ]
 
-    apply_type = EmptyOperator(
-        task_id="apply.type",
-        )
-    
-    merge_df = EmptyOperator(
-        task_id="merge.of",
-        )
+    def gen_empty(*ids):
+        tasks = []
+        for id in ids:
+            task = EmptyOperator(task_id=id)
+            tasks.append(task)
+        return tuple(tasks)
 
-    de_dup = EmptyOperator(
-        task_id="de.dup",
-        )
+    def gen_vpython(**kw):
+        id = kw['id']
+        id = id
+        fun_o = kw['fun_obj']
+        op_kw = kw['op_kw']
 
-    summary_df = EmptyOperator(
-        task_id="summary.df",
-        )
+        task = PythonVirtualenvOperator(
+                task_id=id,
+                python_callable=kw['fun_obj'],
+                system_site_packages=False,
+                requirements=REQUIREMENTS,
+                op_kwargs=kw['op_kw']
+            )
+        return task
 
-    task_end = EmptyOperator(task_id='end', trigger_rule='all_done')
+    def pro_data(**params):
+        print("@" * 33)
+        print(params['task_name'])
+        from pprint import pprint as pp
+        pp(params) # 여기는 task_name
+        print("@" * 33)
 
-    task_start = EmptyOperator(task_id='start')
+    def pro_data2(task_name, **params):
+        print("@" * 33)
+        print(task_name)
+        from pprint import pprint as pp
+        pp(params) # 여기는 task_name이 없을 것으로 예상됨.
+        print("@" * 33)
+
+    def pro_data3(task_name):
+        print("@" * 33)
+        print(task_name)
+        #print(params) # 여기는 task_name 없을 것으로 예상 
+        print("@" * 33)
+
+    def pro_data4(task_name, ds_nodash, **kwargs):
+        print("@" * 33)
+        print(task_name)
+        print(ds_nodash) # 여기는 task_name, ds_nodash가 없을 것으로 예상됨.
+        print(kwargs)
+        print("@" * 33)
+
+    start, end = gen_empty('start', 'end')
+
+    apply_type = gen_vpython(
+            id = "apply.type",
+            fun_obj = pro_data,
+            op_kw = {"task_name": "apply_type!!"}
+            )
+
+    merge_df = gen_vpython(
+            id= "merge.df",
+            fun_obj = pro_data2,
+            op_kw = {"task_name" : "merge_df!!"} 
+            )
+
+    de_dup = gen_vpython(
+            id= "de.dup",
+            fun_obj = pro_data3,
+            op_kw = {"task_name" : "de_dup!!"}
+            )
+
+    summary_df = gen_vpython(
+            id= "summary.df",
+            fun_obj = pro_data4,
+            op_kw = {"task_name" : "summary_df!!"}
+            )
 
 
-    task_start >> apply_type >> merge_df >> de_dup >> summary_df >> task_end
+    start >> merge_df >> de_dup >> apply_type >> summary_df >> end
